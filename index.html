@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>词汇筛查</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: system-ui, "Microsoft YaHei", "PingFang SC", sans-serif;
+         background: #f5f6f8; color: #222; height: 100vh; overflow: hidden; }
+  button { font-family: inherit; }
+  .hidden { display: none !important; }
+
+  /* ---------- 主页 ---------- */
+  #view-home { height: 100vh; overflow-y: auto; padding: 24px 16px; }
+  .home-wrap { max-width: 760px; margin: 0 auto; }
+  .home-title { font-size: 24px; font-weight: 700; margin: 8px 0 20px; }
+  .master-banner { background: #e6f4ea; color: #188038; font-size: 16px; font-weight: 700;
+                   padding: 12px 16px; border-radius: 12px; margin-bottom: 16px; text-align: center; }
+  .round-card { background: #fff; border-radius: 12px; padding: 18px 20px;
+                box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 14px; }
+  .round-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .round-n { font-size: 18px; font-weight: 700; }
+  .round-status { font-size: 13px; padding: 2px 10px; border-radius: 999px;
+                  background: #e8f0fe; color: #1a73e8; }
+  .round-status.done { background: #e6f4ea; color: #188038; }
+  .round-status.manual { background: #fef7e0; color: #b06000; }
+  .round-stats { color: #5f6368; font-size: 14px; margin: 10px 0 14px; }
+  .round-note { font-size: 13px; color: #b06000; margin: -4px 0 10px; }
+  .round-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn { border: none; border-radius: 8px; padding: 9px 22px; font-size: 15px;
+         cursor: pointer; background: #1a73e8; color: #fff; }
+  .btn:hover { background: #1765cc; }
+  .btn:active { background: #1557b0; }
+  .btn.outline-danger { background: #fff; color: #c5221f; border: 1px solid #c5221f; }
+  .btn.outline-danger:hover { background: #fce8e6; }
+  .home-footer { display: flex; justify-content: center; padding: 18px 0 10px; }
+  .btn.ghost { background: #fff; color: #5f6368; border: 1px solid #dadce0; }
+  .btn.ghost:hover { background: #f1f3f4; }
+  .btn.danger-solid { background: #c5221f; }
+  .btn.danger-solid:hover { background: #a50e0e; }
+
+  /* ---------- 测试页 ---------- */
+  #view-quiz { height: 100vh; display: flex; flex-direction: column; }
+  .quiz-top { display: flex; justify-content: space-between; align-items: center;
+              padding: 12px 20px; background: #fff; border-bottom: 1px solid #e8eaed;
+              flex-wrap: wrap; gap: 8px; }
+  .quiz-top .pos { font-size: 15px; color: #333; font-weight: 600; }
+  .quiz-top .right { display: flex; gap: 8px; color: #5f6368; font-size: 14px; }
+  .btn-mini { border: 1px solid #dadce0; background: #fff; color: #1a73e8;
+              border-radius: 6px; padding: 6px 14px; font-size: 14px; cursor: pointer; }
+  .btn-mini:hover { background: #f1f6fe; }
+  .btn-mini:active { background: #e8f0fe; }
+  .btn-mini.danger { color: #c5221f; }
+  .btn-mini.danger:hover { background: #fce8e6; }
+  .btn-mini.solid-danger { background: #c5221f; color: #fff; border-color: #c5221f; }
+  .btn-mini.solid-danger:hover { background: #a50e0e; }
+  .quiz-main { flex: 1; overflow-y: auto; display: flex; flex-direction: column;
+               align-items: center; padding: 28px 20px 12px; }
+  .quiz-word { font-size: 32px; font-weight: 700; margin: 8px 0 0;
+               word-break: break-word; text-align: center; }
+  .quiz-phonetic { font-size: 14px; color: #888; min-height: 20px; margin: 4px 0 24px; }
+  .opts { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 12px; }
+  .opt { position: relative; width: 100%; text-align: left; background: #fff;
+         border: 1.5px solid #dadce0; border-radius: 10px; padding: 14px 16px;
+         font-size: 15px; line-height: 1.55; cursor: pointer; color: #222; }
+  .opt:hover:not(.locked) { border-color: #1a73e8; background: #f8fbff; }
+  .opt .opt-text { display: -webkit-box; -webkit-line-clamp: 3;
+                   -webkit-box-orient: vertical; overflow: hidden; }
+  .opt.correct { background: #e6f4ea; border-color: #188038; color: #188038; }
+  .opt.correct .opt-text { display: block; -webkit-line-clamp: none;
+                           overflow: visible; }   /* 判定后正确项完整显示 */
+  .opt.wrong { background: #fce8e6; border-color: #c5221f; color: #c5221f; }
+  .quiz-hint { padding: 12px 20px 18px; text-align: center; color: #5f6368;
+               font-size: 13px; min-height: 48px; }
+
+  /* ---------- 模态确认 / 轻提示 ---------- */
+  #modal { position: fixed; inset: 0; z-index: 200; display: flex;
+           align-items: center; justify-content: center; }
+  #modal.hidden { display: none !important; }
+  .modal-mask { position: absolute; inset: 0; background: rgba(32,33,36,.45); }
+  .modal-card { position: relative; background: #fff; border-radius: 12px;
+                padding: 22px 24px; max-width: 420px; width: calc(100% - 48px);
+                box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+  .modal-text { font-size: 15px; line-height: 1.6; margin-bottom: 18px; word-break: break-word; }
+  .modal-btns { display: flex; justify-content: flex-end; gap: 10px; }
+  #toast { position: fixed; left: 50%; top: 64px; transform: translateX(-50%);
+           background: rgba(32,33,36,.92); color: #fff; padding: 9px 18px;
+           border-radius: 8px; font-size: 14px; z-index: 300; opacity: 0;
+           transition: opacity .18s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+
+  /* ---------- 打印错词表（A4 纵向 / 15mm 边距 / 10pt / 每行 3 组） ---------- */
+  @page { size: A4 portrait; margin: 15mm; }
+  #view-print { display: none; height: 100vh; overflow-y: auto; background: #f5f6f8; }
+  #view-print.open { display: block; }
+  .print-toolbar { padding: 12px 20px; background: #fff; border-bottom: 1px solid #e8eaed;
+                   position: sticky; top: 0; z-index: 10; }
+  .print-sheet { background: #fff; max-width: 180mm; margin: 20px auto;
+                 padding: 15mm; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+  .print-title { font-size: 12pt; font-weight: normal; margin: 0 0 2.5em; }
+  .print-grid { display: flex; flex-wrap: wrap; gap: 1em; }
+  .print-item { flex: 0 0 calc((100% - 2em) / 3); min-width: 0;
+                break-inside: avoid; page-break-inside: avoid; }
+  .print-word { font-weight: 700; font-size: 10pt; line-height: 1.35; word-break: break-word; }
+  .print-trans { font-size: 10pt; line-height: 1.4; word-break: break-word; }
+  .btn.outline { background: #fff; color: #1a73e8; border: 1px solid #1a73e8; }
+  .btn.outline:hover { background: #f1f6fe; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn:disabled:hover { background: #1a73e8; }
+  .btn.outline:disabled:hover { background: #fff; }
+  @media print {
+    html, body { height: auto !important; overflow: visible !important; background: #fff; }
+    #view-home, #view-quiz, #modal, #toast, .print-toolbar { display: none !important; }
+    #view-print.open { height: auto; overflow: visible; background: #fff; }
+    .print-sheet { max-width: none; margin: 0; padding: 0; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="view-home" class="hidden">
+  <div class="home-wrap">
+    <h1 class="home-title">词汇筛查</h1>
+    <div id="master-banner" class="master-banner hidden">全部掌握 🎉</div>
+    <div id="rounds"></div>
+    <div class="home-footer">
+      <button class="btn outline-danger" id="btn-reset">重置全部记录</button>
+    </div>
+  </div>
+</div>
+
+<div id="view-quiz" class="hidden">
+  <div class="quiz-top">
+    <div class="pos" id="quiz-pos"></div>
+    <div class="right" id="quiz-right">
+      <button class="btn-mini" id="btn-save" data-noskip>保存</button>
+      <button class="btn-mini danger" id="btn-exit" data-noskip>退出</button>
+      <button class="btn-mini hidden" id="btn-export-batch" data-noskip>导出本批错词</button>
+      <button class="btn-mini solid-danger" id="btn-end" data-noskip>结束本轮</button>
+    </div>
+  </div>
+  <div class="quiz-main">
+    <div class="quiz-word" id="quiz-word"></div>
+    <div class="quiz-phonetic" id="quiz-phonetic"></div>
+    <div class="opts" id="quiz-opts"></div>
+  </div>
+  <div class="quiz-hint" id="quiz-hint">选择正确的中文释义</div>
+</div>
+
+<div id="modal" class="hidden">
+  <div class="modal-mask"></div>
+  <div class="modal-card" id="modal-card">
+    <div class="modal-text" id="modal-text"></div>
+    <div class="modal-btns">
+      <button class="btn ghost" id="modal-cancel">取消</button>
+      <button class="btn danger-solid" id="modal-ok">确认</button>
+    </div>
+  </div>
+</div>
+
+<div id="view-print">
+  <div class="print-toolbar">
+    <button class="btn" id="btn-print-back" data-noskip>返回</button>
+  </div>
+  <div class="print-sheet">
+    <div class="print-title" id="print-title"></div>
+    <div class="print-grid" id="print-grid"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="library.js"></script>
+<script>
+(function () {
+'use strict';
+
+var WORDS = window.WORDS || [];
+var params = new URLSearchParams(location.search);
+var DEBUG = params.get('debug') === '1';
+var FRESH = DEBUG && params.get('fresh') === '1';
+var WIPE_PROD = DEBUG && params.get('wipe') === 'prod';  // 调试辅助: 仅 debug 生效，清空正式记录
+var AUTOTEST = DEBUG && (params.get('autotest') === '1' || params.get('autotest') === 'correct');
+var AUTOTEST_CORRECT = DEBUG && params.get('autotest') === 'correct';
+var MOCK_DONE = DEBUG && params.get('mockdone') === '1';   // 调试辅助: 构造已完成轮次（分批导出验收用）
+var MOCK_WORDS = Math.max(1, Math.min(3000, parseInt(params.get('words') || '600', 10) || 600));
+var MOCK_STATUS = DEBUG && MOCK_DONE && params.get('mockstatus') === 'in_progress' ? 'in_progress' : 'done';
+// 调试辅助：构造“第 1 轮进行中、已答错 N 词、已导出 M 词”的轮次（分批导出验收用）
+var MOCK_WRONG = DEBUG ? Math.max(0, Math.min(2000, parseInt(params.get('mockwrong') || '0', 10) || 0)) : 0;
+var MOCK_EXPORTED = DEBUG && MOCK_WRONG > 0 ? Math.max(0, parseInt(params.get('mockexported') || '0', 10) || 0) : 0;
+// debug 模式使用独立存储键：调试数据不污染正式 12000 词记录
+var STORE_KEY = DEBUG ? 'wordQuizState_debug' : 'wordQuizState';
+
+var WORD_INDEX = {};
+WORDS.forEach(function (x) { WORD_INDEX[x.w] = x; });
+
+/* ---------- 状态 ---------- */
+function loadState() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch (e) { return null; }
+}
+function saveState(st) { localStorage.setItem(STORE_KEY, JSON.stringify(st)); }
+
+function shuffle(arr) {
+  for (var i = arr.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+  }
+  return arr;
+}
+
+function buildPool() {
+  return DEBUG
+    ? WORDS.slice(0, 20).map(function (x) { return x.w; })  // 调试: 前 20 词
+    : WORDS.map(function (x) { return x.w; });              // 正式: 全部 12000 词
+}
+
+function defaultState() {
+  // 轮次数据结构：
+  //   pool: 本轮词集合；order: 打乱后的出题顺序（生成后持久化，绝不每次重排）
+  //   pos: 当前题号；correct/wrong: 已答对/错词
+  //   status: not_started | in_progress | done | manually_done
+  return {
+    rounds: [{
+      n: 1, status: 'not_started', pool: buildPool(),
+      order: [], pos: 0, correct: [], wrong: []
+    }],
+    currentRound: 1
+  };
+}
+
+// 旧存档字段迁移（阶段2/3 的 finished/manual_end -> done/manually_done）
+function migrateState(st) {
+  var changed = false;
+  st.rounds.forEach(function (r) {
+    if (r.status === 'finished') { r.status = 'done'; changed = true; }
+    if (r.status === 'manual_end') { r.status = 'manually_done'; changed = true; }
+  });
+  return changed;
+}
+
+function initState() {
+  if (FRESH) localStorage.removeItem(STORE_KEY);
+  if (WIPE_PROD) localStorage.removeItem('wordQuizState');
+  var st = loadState();
+  if (!st || !Array.isArray(st.rounds) || !st.rounds.length) {
+    st = defaultState();
+  } else if (migrateState(st)) {
+    saveState(st);
+  }
+  saveState(st);
+  // 调试辅助：构造“第 1 轮进行中、已答错 N 词、已导出 M 词”状态（写入存储，用于验证刷新不重复导出）
+  if (MOCK_WRONG > 0) {
+    var mwN = Math.min(MOCK_WRONG, WORDS.length);
+    var mwM = Math.min(MOCK_EXPORTED, mwN);
+    var mwPool = WORDS.slice(0, Math.min(mwN + 20, WORDS.length)).map(function (x) { return x.w; });
+    var mwOrder = mwPool.slice();   // 固定顺序（贴近“同一轮按答题顺序追加错词”，便于验证批2不重复批1）
+    st = {
+      rounds: [{
+        n: 1, status: 'in_progress', pool: mwPool, order: mwOrder, pos: mwN,
+        correct: [], wrong: mwOrder.slice(0, mwN), exportedWrongCount: mwM
+      }],
+      currentRound: 1
+    };
+    saveState(st);
+    // 清理 URL 上的 mock 参数：刷新后加载已保存状态，验证“已导出不重复”
+    try {
+      history.replaceState(null, '', location.pathname + (DEBUG ? '?debug=1' : ''));
+    } catch (e) {}
+  } else if (MOCK_DONE) {
+    var mw = WORDS.slice(0, MOCK_WORDS).map(function (x) { return x.w; });
+    st = {
+      rounds: [{
+        n: 1, status: MOCK_STATUS, pool: mw.slice(), order: shuffle(mw.slice()),
+        pos: MOCK_STATUS === 'done' ? mw.length : 0,
+        correct: [],
+        wrong: MOCK_STATUS === 'done' ? mw.slice() : []
+      }],
+      currentRound: 1
+    };
+  }
+  return st;
+}
+var state = initState();
+
+function findRound(n) {
+  for (var i = 0; i < state.rounds.length; i++) if (state.rounds[i].n === n) return state.rounds[i];
+  return null;
+}
+function getRound() { return findRound(state.currentRound); }
+
+/* ---------- 轮次计算 ---------- */
+// 未测词 = pool - correct - wrong 的集合差（不用 pool.slice(pos)，更稳）
+function untestedOf(r) {
+  var done = {};
+  r.correct.forEach(function (w) { done[w] = 1; });
+  r.wrong.forEach(function (w) { done[w] = 1; });
+  return r.pool.filter(function (w) { return !done[w]; });
+}
+
+// 下一轮 pool = 本轮 wrong ∪ 未测词，去重；生成时立即 shuffle 写入 order，之后不再重排
+function buildNextRound(r) {
+  var merged = {};
+  var nextPool = [];
+  r.wrong.concat(untestedOf(r)).forEach(function (w) {
+    if (!merged[w]) { merged[w] = 1; nextPool.push(w); }
+  });
+  if (nextPool.length === 0) return null;      // 全部掌握：不再生成下一轮
+  return {
+    n: r.n + 1, status: 'not_started', pool: nextPool,
+    order: shuffle(nextPool.slice()), pos: 0, correct: [], wrong: []
+  };
+}
+
+// mode: 'auto'（正常测完）| 'manual'（手动结束）
+function closeRound(r, mode) {
+  r.status = mode === 'manual' ? 'manually_done' : 'done';
+  var nx = buildNextRound(r);
+  if (nx) state.rounds.push(nx);
+  saveState(state);
+}
+
+function lastRoundMastered() {
+  var last = state.rounds[state.rounds.length - 1];
+  return last.status === 'done' && last.wrong.length === 0 && untestedOf(last).length === 0;
+}
+
+/* ---------- 视图切换 ---------- */
+var viewHome = document.getElementById('view-home');
+var viewQuiz = document.getElementById('view-quiz');
+var viewPrint = document.getElementById('view-print');
+function showHome() { viewQuiz.classList.add('hidden'); viewPrint.classList.remove('open'); viewHome.classList.remove('hidden'); }
+function showQuiz() { viewHome.classList.add('hidden'); viewPrint.classList.remove('open'); viewQuiz.classList.remove('hidden'); }
+function showPrint() { viewHome.classList.add('hidden'); viewQuiz.classList.add('hidden'); viewPrint.classList.add('open'); }
+
+/* ---------- 主页 ---------- */
+var ROUND_STATUS_TEXT = { not_started: '未开始', in_progress: '进行中', done: '已完成', manually_done: '手动结束' };
+var STATUS_CLASS = { done: 'done', manually_done: 'manual' };
+
+function renderHome() {
+  var banner = document.getElementById('master-banner');
+  banner.classList.toggle('hidden', !lastRoundMastered());
+
+  var box = document.getElementById('rounds');
+  box.innerHTML = '';
+  state.rounds.forEach(function (r) {
+    var total = r.order.length || r.pool.length;
+    var untested = untestedOf(r).length;
+    var card = document.createElement('div'); card.className = 'round-card';
+    var head = document.createElement('div'); head.className = 'round-head';
+    var nEl = document.createElement('div'); nEl.className = 'round-n';
+    nEl.textContent = '第 ' + r.n + ' 轮';
+    var sEl = document.createElement('span');
+    sEl.className = 'round-status' + (STATUS_CLASS[r.status] ? ' ' + STATUS_CLASS[r.status] : '');
+    sEl.textContent = ROUND_STATUS_TEXT[r.status];
+    head.appendChild(nEl); head.appendChild(sEl);
+    var stats = document.createElement('div'); stats.className = 'round-stats';
+    stats.textContent = '会 ' + r.correct.length + ' · 不会 ' + r.wrong.length +
+                        ' · 未测 ' + untested + ' · 共 ' + total;
+    card.appendChild(head); card.appendChild(stats);
+
+    var btns = document.createElement('div'); btns.className = 'round-btns';
+    if (r.status === 'not_started') {
+      var bStart = document.createElement('button'); bStart.className = 'btn';
+      bStart.textContent = '开始';
+      bStart.addEventListener('click', function (ev) { ev.stopPropagation(); startRound(r.n); });
+      btns.appendChild(bStart);
+    } else if (r.status === 'in_progress') {
+      // 进行中：有未导出错词时显示提示与「导出本批错词」
+      var unexp = unexportedWrongOf(r).length;
+      if (unexp > 0) {
+        var note = document.createElement('div'); note.className = 'round-note';
+        note.textContent = '未导出错词 ' + unexp + ' 条';
+        card.appendChild(note);
+      }
+      var bGo = document.createElement('button'); bGo.className = 'btn';
+      bGo.textContent = '继续';
+      bGo.addEventListener('click', function (ev) { ev.stopPropagation(); continueRound(r.n); });
+      var bEnd = document.createElement('button'); bEnd.className = 'btn outline-danger';
+      bEnd.textContent = '结束本轮';
+      bEnd.addEventListener('click', function (ev) { ev.stopPropagation(); requestEndRound(r.n); });
+      if (unexp > 0) {
+        var bExport = document.createElement('button'); bExport.className = 'btn outline';
+        bExport.textContent = '导出本批错词';
+        bExport.addEventListener('click', function (ev) { ev.stopPropagation(); exportWrongBatches(r.n); renderHome(); });
+        btns.appendChild(bExport);
+      }
+      btns.appendChild(bGo); btns.appendChild(bEnd);
+    } else if (r.status === 'done' || r.status === 'manually_done') {
+      // 已结束：未导出错词可继续分批导出；「导出 CSV」= 全部未导出错词（350 规则）
+      var unexp2 = unexportedWrongOf(r).length;
+      var noWrong = r.wrong.length === 0;
+      if (unexp2 > 0) {
+        var bRest = document.createElement('button'); bRest.className = 'btn outline';
+        bRest.textContent = '导出剩余错词';
+        bRest.addEventListener('click', function (ev) { ev.stopPropagation(); exportWrongBatches(r.n); renderHome(); });
+        btns.appendChild(bRest);
+      }
+      var bCsv = document.createElement('button');
+      bCsv.className = 'btn'; bCsv.textContent = '导出 CSV';
+      bCsv.disabled = noWrong; if (noWrong) bCsv.title = '本轮无错词';
+      bCsv.addEventListener('click', function (ev) { ev.stopPropagation(); exportWrongBatches(r.n); renderHome(); });
+      var bPrint = document.createElement('button');
+      bPrint.className = 'btn outline'; bPrint.textContent = '打印错词表';
+      bPrint.disabled = noWrong; if (noWrong) bPrint.title = '本轮无错词';
+      bPrint.addEventListener('click', function (ev) { ev.stopPropagation(); openPrintView(r.n); });
+      btns.appendChild(bCsv); btns.appendChild(bPrint);
+    }
+    card.appendChild(btns);
+    box.appendChild(card);
+  });
+}
+
+function startRound(n) {
+  var r = findRound(n);
+  if (!r || r.status !== 'not_started') return;
+  if (!r.pool.length) { toast('本轮没有需要测试的词'); return; }  // 边界防御：空 pool 不开始
+  // 硬约束：order 缺失时才在「开始」生成（第1轮）；第2+轮在上一轮结束时已生成并保存
+  if (!Array.isArray(r.order) || r.order.length !== r.pool.length) {
+    r.order = shuffle(r.pool.slice());
+  }
+  r.pos = 0; r.correct = []; r.wrong = [];
+  r.status = 'in_progress';
+  state.currentRound = r.n;
+  saveState(state);
+  showQuiz();
+  renderQuestion();
+}
+
+function continueRound(n) {
+  var r = findRound(n);
+  if (!r || r.status !== 'in_progress') return;
+  // 硬约束：继续 = 读已保存的 order[pos]，绝不重新 shuffle
+  state.currentRound = r.n;
+  showQuiz();
+  renderQuestion();
+}
+
+/* ---------- 结束本轮 ---------- */
+function requestEndRound(n) {
+  var r = findRound(n || state.currentRound);
+  if (!r || r.status !== 'in_progress') return;
+  var x = untestedOf(r).length;
+  showConfirm('本轮还有 ' + x + ' 个词未测，结束后这些词将保留到下一轮，是否继续？', function () {
+    closeRound(r, 'manual');
+    showHome();
+    renderHome();
+    toast('本轮已手动结束');
+  });
+}
+
+/* ---------- 导出错词 CSV ---------- */
+function csvEscape(v) {
+  var s = String(v == null ? '' : v);
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function buildCsvText(wrongList) {
+  var lines = ['word,translation'];
+  wrongList.forEach(function (w) {
+    var it = WORD_INDEX[w];
+    if (it) lines.push(csvEscape(it.w) + ',' + csvEscape(it.t));
+  });
+  return lines.join('\r\n') + '\r\n';
+}
+function downloadCsv(filename, text) {
+  var blob = new Blob(['\ufeff' + text], { type: 'text/csv;charset=utf-8' });  // UTF-8 BOM
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  // 程序化点击（a.click()）同样会冒泡到 document，测试页判定态下会误触“空白处跳题”，必须拦截
+  a.addEventListener('click', function (e) { e.stopPropagation(); });
+  document.body.appendChild(a); a.click();
+  setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+function exportRoundCsv(n) {   // 兼容旧调用：等同于导出全部未导出错词（350 规则）
+  exportWrongBatches(n);
+}
+
+/* ---------- 分批导出（每 350 条一批；批号续接已导出量；不足 350 的最后一批叫尾批） ---------- */
+var EXPORT_BATCH_SIZE = 350;
+
+// 本轮尚未导出过的错词（按追加顺序）
+function unexportedWrongOf(r) {
+  var count = r.exportedWrongCount || 0;
+  return r.wrong.slice(count);
+}
+
+function exportWrongBatches(n) {
+  var r = findRound(n);
+  if (!r) return;
+  var list = unexportedWrongOf(r);
+  if (!list.length) { toast('没有未导出的错词'); return; }
+  var start = r.exportedWrongCount || 0;
+  var baseNo = Math.floor(start / EXPORT_BATCH_SIZE) + 1;   // 下一个完整批号（尾批不占批号）
+  var prefix = DEBUG ? 'debug_' : '';                       // debug 文件名加前缀
+  var files = [];
+  for (var i = 0; i < list.length; i += EXPORT_BATCH_SIZE) {
+    var batch = list.slice(i, i + EXPORT_BATCH_SIZE);
+    var isLast = (i + EXPORT_BATCH_SIZE >= list.length);
+    // 最后一批不足 350 才叫尾批；正好 350 的整数倍仍按批号
+    var label = (isLast && batch.length < EXPORT_BATCH_SIZE)
+      ? '尾批'
+      : '批' + (baseNo + Math.floor(i / EXPORT_BATCH_SIZE));
+    files.push({ name: prefix + '第' + n + '轮错词_' + label + '.csv', text: buildCsvText(batch) });
+  }
+  files.forEach(function (f) { downloadCsv(f.name, f.text); });
+  r.exportedWrongCount = start + list.length;   // 持久化已导出量
+  saveState(state);
+  toast('已导出 ' + list.length + ' 条，共 ' + files.length + ' 个文件');
+}
+
+/* ---------- 打印错词表（A4 页面内预览） ---------- */
+function openPrintView(n) {
+  var r = findRound(n);
+  if (!r) return;
+  var list = r.wrong.filter(function (w) { return WORD_INDEX[w]; });   // 只读 wrong
+  document.getElementById('print-title').textContent = '第' + n + '轮错词（' + list.length + ' 条）';
+  var grid = document.getElementById('print-grid');
+  grid.innerHTML = '';
+  list.forEach(function (w) {
+    var it = WORD_INDEX[w];
+    var item = document.createElement('div'); item.className = 'print-item';
+    var wEl = document.createElement('div'); wEl.className = 'print-word'; wEl.textContent = it.w;
+    var tEl = document.createElement('div'); tEl.className = 'print-trans'; tEl.textContent = it.t;
+    item.appendChild(wEl); item.appendChild(tEl);
+    grid.appendChild(item);
+  });
+  showPrint();
+}
+document.getElementById('btn-print-back').addEventListener('click', function (ev) {
+  ev.stopPropagation();
+  showHome();      // 打印视图开关不改变任何轮次状态
+  renderHome();
+});
+
+/* ---------- 轻提示 toast ---------- */
+var toastTimer = null;
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2000);
+}
+
+/* ---------- 模态确认（自定义，避免原生 confirm 阻塞） ---------- */
+var modalCb = null;
+function showConfirm(text, onOk) {
+  document.getElementById('modal-text').textContent = text;
+  modalCb = onOk;
+  document.getElementById('modal').classList.remove('hidden');
+}
+function hideConfirm() {
+  modalCb = null;
+  document.getElementById('modal').classList.add('hidden');
+}
+document.getElementById('modal-cancel').addEventListener('click', function (ev) {
+  ev.stopPropagation();
+  hideConfirm();                     // 取消：什么都不发生
+});
+document.getElementById('modal-ok').addEventListener('click', function (ev) {
+  ev.stopPropagation();
+  var cb = modalCb;
+  hideConfirm();
+  if (cb) cb();
+});
+// 遮罩与卡片自身点击不冒泡（避免触发测试页「空白处跳题」），也不关闭（只有按钮可关闭）
+document.getElementById('modal-card').addEventListener('click', function (ev) { ev.stopPropagation(); });
+document.querySelector('.modal-mask').addEventListener('click', function (ev) { ev.stopPropagation(); });
+
+/* ---------- 保存 / 退出 ---------- */
+document.getElementById('btn-save').addEventListener('click', function (ev) {
+  ev.stopPropagation();                 // 不触发「空白处跳题」
+  saveState(state);                     // 立即保存当前全部进度
+  toast('已保存，可安全退出');
+});
+
+document.getElementById('btn-exit').addEventListener('click', function (ev) {
+  ev.stopPropagation();
+  saveState(state);                     // 先保存；不改变 pool/order/pos/correct/wrong 任何一项
+  showHome();
+  renderHome();
+  toast('进度已保存');
+});
+
+document.getElementById('btn-end').addEventListener('click', function (ev) {
+  ev.stopPropagation();
+  requestEndRound();                    // 测试页顶部「结束本轮」
+});
+
+document.getElementById('btn-export-batch').addEventListener('click', function (ev) {
+  ev.stopPropagation();                 // 不触发「空白处跳题」
+  var r = getRound();
+  if (!r) return;
+  exportWrongBatches(r.n);              // 导出全部未导出错词（每 350 条一个文件）
+  // 延迟隐藏按钮：避免在本次点击事件处理中按钮消失导致点击序列落空（可能误触跳题）
+  setTimeout(refreshExportButtons, 300);
+});
+
+/* ---------- 重置全部记录（两次确认；只清当前模式的学习记录） ---------- */
+function requestReset() {
+  showConfirm('确定要重置全部学习记录吗？词库不会被删除。', function () {
+    showConfirm('再次确认：所有轮次进度和统计将清空，无法恢复。', function () {
+      doReset();
+    });
+  });
+}
+function doReset() {
+  localStorage.removeItem(STORE_KEY);   // 只清当前模式（正式或 debug），不动词库文件
+  state = defaultState();
+  saveState(state);
+  showHome();
+  renderHome();
+  toast('已重置');
+}
+document.getElementById('btn-reset').addEventListener('click', function (ev) {
+  ev.stopPropagation();
+  requestReset();
+});
+
+/* ---------- 测试页 ---------- */
+var locked = false;       // 本题是否已判定（防连点重复计分）
+var optTexts = [];        // 本题 3 个选项文本（含正确项，已随机排列）
+var optBtns = [];         // 本题按钮 DOM，与 optTexts 一一对应
+
+function buildOptionTexts(word, pool) {
+  var info = WORD_INDEX[word];
+  var correctT = info.t;
+  var texts = [correctT], usedWords = [word], out = [correctT];
+  // 1) 先从本轮 pool 随机抽 2 个不同翻译（与正确项、彼此均不同）
+  var src = pool.slice();
+  var attempts = Math.min(src.length * 3 + 100, 400);
+  for (var i = 0; i < attempts && out.length < 3; i++) {
+    var w = src[Math.floor(Math.random() * src.length)];
+    if (usedWords.indexOf(w) >= 0) continue;
+    var t = WORD_INDEX[w] ? WORD_INDEX[w].t : '';
+    if (!t || texts.indexOf(t) >= 0) continue;
+    usedWords.push(w); texts.push(t); out.push(t);
+  }
+  // 2) 抽不到再从全库抽
+  if (out.length < 3) {
+    for (var k = 0; k < 3000 && out.length < 3; k++) {
+      var w2 = WORDS[Math.floor(Math.random() * WORDS.length)].w;
+      if (usedWords.indexOf(w2) >= 0) continue;
+      var t2 = WORD_INDEX[w2].t;
+      if (texts.indexOf(t2) >= 0) continue;
+      usedWords.push(w2); texts.push(t2); out.push(t2);
+    }
+  }
+  if (out.length < 3) console.warn('干扰项不足(仅 debug 可能):', word, out);
+  return shuffle(out);   // 3 个选项位置随机
+}
+
+/* ---------- 测试页顶部「导出本批错词」按钮可见性 ---------- */
+function refreshExportButtons() {
+  var btn = document.getElementById('btn-export-batch');
+  if (!btn) return;
+  var r = getRound();
+  var show = r && r.status === 'in_progress' && unexportedWrongOf(r).length > 0;
+  btn.classList.toggle('hidden', !show);
+}
+
+function renderQuestion() {
+  var r = getRound();
+  var word = r.order[r.pos];
+  if (!word) { showHome(); renderHome(); return; }   // 边界防御：无题可出时回主页
+  var info = WORD_INDEX[word] || { w: word, t: '', p: '' };
+  locked = false;
+  refreshExportButtons();   // 有未导出错词时显示「导出本批错词」
+  document.getElementById('quiz-pos').textContent = '第 ' + r.n + ' 轮 · ' + (r.pos + 1) + ' / ' + r.order.length;
+  document.getElementById('quiz-word').textContent = info.w;
+  document.getElementById('quiz-phonetic').textContent = info.p ? '/' + info.p + '/' : '';
+  document.getElementById('quiz-hint').textContent = '选择正确的中文释义';
+
+  optTexts = buildOptionTexts(word, r.pool);
+  optBtns = [];
+  var box = document.getElementById('quiz-opts');
+  box.innerHTML = '';
+  var correctText = info.t;
+  optTexts.forEach(function (txt) {
+    var b = document.createElement('button'); b.className = 'opt';
+    var span = document.createElement('span'); span.className = 'opt-text';
+    span.textContent = txt;
+    b.appendChild(span);
+    b.addEventListener('click', function (ev) {
+      ev.stopPropagation();            // 点选项本身绝不触发跳题
+      if (locked) return;              // 判定后锁定：连点不重复计分
+      locked = true;
+      var isCorrect = (txt === correctText);
+      var correctBtn = null;
+      for (var i = 0; i < optBtns.length; i++) if (optTexts[i] === correctText) correctBtn = optBtns[i];
+      if (isCorrect) {
+        b.classList.add('correct');    // 答对：该选项变绿
+        r.correct.push(word);
+      } else {
+        b.classList.add('wrong');      // 答错：所点选项变红
+        if (correctBtn) correctBtn.classList.add('correct');  // 且正确选项变绿
+        r.wrong.push(word);
+      }
+      r.pos += 1;
+      if (r.pos >= r.order.length) {
+        // 正常测完：本轮 done；答错词（无未测词）进入下一轮
+        closeRound(r, 'auto');
+      } else {
+        saveState(state);              // 判定后立即保存（correct/wrong 写入之后、渲染下一题之前）
+      }
+      refreshExportButtons();          // 本轮错词增加后更新「导出本批错词」按钮
+      document.getElementById('quiz-hint').textContent = isCorrect
+        ? '✅ 答对了！点击页面任意空白处进入下一题'
+        : '❌ 答错了，正确答案已标绿。点击页面任意空白处进入下一题';
+      for (var j = 0; j < optBtns.length; j++) optBtns[j].classList.add('locked');
+    });
+    optBtns.push(b);
+    box.appendChild(b);
+  });
+}
+
+function nextQuestion() {
+  var r = getRound();
+  if (r.pos >= r.order.length) {       // 答满：正常完成回主页
+    showHome();
+    renderHome();
+    return;
+  }
+  renderQuestion();
+}
+
+/* 判定后点击页面任意空白处 -> 进入下一题（选项/按钮已 stopPropagation，不会误触） */
+document.addEventListener('click', function (ev) {
+  if (viewQuiz.classList.contains('hidden')) return;
+  if (document.getElementById('modal') && !document.getElementById('modal').classList.contains('hidden')) return;
+  if (!locked) return;
+  if (ev.target.closest && ev.target.closest('.opt, [data-noskip]')) return;
+  nextQuestion();
+});
+
+/* ---------- 启动 ---------- */
+showHome();
+renderHome();
+console.log('词汇筛查: 已加载 ' + WORDS.length + ' 词 | 模式: ' + (DEBUG ? 'debug' : '正式') +
+            ' | 存储键: ' + STORE_KEY);
+
+// 调试辅助：?debug=1&mockdone=1&words=20&print=1 自动打开打印视图（headless 打印验收用）
+if (DEBUG && MOCK_DONE && params.get('print') === '1') {
+  openPrintView(1);
+}
+
+/* ---------- 调试开关（仅 debug 生效） ----------
+ * ?debug=1        第 1 轮 pool 只取前 20 词（独立存储键，不影响正式数据）
+ * ?debug=1&fresh=1 清空 debug 学习记录后重新开始
+ * ?debug=1&wipe=prod 清空正式记录（调试辅助）
+ * ?debug=1&autotest=1 自动随机答题直到本轮结束，结束后停留主页
+ * ?debug=1&autotest=correct 自动答对（每轮全对），自动开始下一轮直到全部掌握
+ */
+if (AUTOTEST) {
+  if (getRound().status === 'in_progress') { showQuiz(); renderQuestion(); }
+  var atTimer = setInterval(function () {
+    if (viewQuiz.classList.contains('hidden')) {
+      if (AUTOTEST_CORRECT) {
+        var nxt = null;
+        for (var i = 0; i < state.rounds.length; i++) {
+          if (state.rounds[i].status === 'not_started') { nxt = state.rounds[i]; break; }
+        }
+        if (nxt) { startRound(nxt.n); return; }
+      }
+      clearInterval(atTimer);
+      return;
+    }
+    if (!locked) {
+      var opts = document.querySelectorAll('#quiz-opts .opt');
+      if (!opts.length) return;
+      var pick = Math.floor(Math.random() * opts.length);
+      if (AUTOTEST_CORRECT) {
+        var rr = getRound();
+        var correctT = WORD_INDEX[rr.order[rr.pos]].t;
+        for (var k = 0; k < optTexts.length; k++) if (optTexts[k] === correctT) pick = k;
+      }
+      opts[pick].click();
+    } else {
+      nextQuestion();
+    }
+  }, 250);
+}
+})();
+</script>
+</body>
+</html>

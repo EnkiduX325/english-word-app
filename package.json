@@ -1,0 +1,18 @@
+{
+  "name": "vocab-screener",
+  "productName": "词汇筛查",
+  "version": "1.0.0",
+  "description": "离线英语单词筛查工具：答对淘汰、错词分轮、分批导出复核、打印错词表（内置 12000 词离线词库）",
+  "main": "main.js",
+  "author": "",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-packager . \"词汇筛查\" --platform=win32 --arch=x64 --out=dist --overwrite --asar --prune=true --ignore=node_modules"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-packager": "^17.1.2"
+  }
+}
